@@ -1,0 +1,6 @@
+venv/
+__pycache__/
+*.pyc
+.vercel/
+flask_stdout.log
+flask_stderr.log

@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PhishShield</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+    <div class="page-shell">
+        <div class="ambient ambient-one"></div>
+        <div class="ambient ambient-two"></div>
+
+        <main class="layout">
+            <section class="hero">
+                <p class="eyebrow">Phishing URL Detection</p>
+                <h1>Check suspicious links before you click.</h1>
+                <p class="hero-copy">
+                    Analyze one URL for a deep feature breakdown, or scan a list of URLs at once to triage risky links
+                    faster during testing and demos.
+                </p>
+
+                <form method="post" class="checker-form">
+                    <input type="hidden" name="mode" value="single">
+                    <label for="url" class="sr-only">Enter URL</label>
+                    <div class="input-row">
+                        <input
+                            id="url"
+                            name="url"
+                            type="text"
+                            placeholder="https://example.com/login"
+                            value="{{ input_url }}"
+                            autocomplete="off"
+                            spellcheck="false"
+                        >
+                        <button type="submit">Analyze URL</button>
+                    </div>
+                </form>
+
+                <form method="post" class="checker-form batch-form">
+                    <input type="hidden" name="mode" value="batch">
+                    <label for="batch_urls" class="batch-label">Batch scan</label>
+                    <textarea
+                        id="batch_urls"
+                        name="batch_urls"
+                        rows="7"
+                        placeholder="https://example.com&#10;http://suspicious-login-reset.tk&#10;https://github.com"
+                        spellcheck="false"
+                    >{{ batch_input }}</textarea>
+                    <button type="submit">Scan List</button>
+                </form>
+
+                <div class="status-row">
+                    {% if model_ready %}
+                    <span class="pill ready">Model ready</span>
+                    {% else %}
+                    <span class="pill warning">Model missing</span>
+                    {% endif %}
+                    <span class="pill neutral">Local browser UI</span>
+                </div>
+
+                {% if error %}
+                <div class="message-card error">{{ error }}</div>
+                {% endif %}
+            </section>
+
+            <section class="result-panel">
+                {% if result %}
+                <div class="result-card {{ 'phishing' if result.predicted_class == 1 else 'safe' }}">
+                    <p class="result-label">Verdict</p>
+                    <h2>{{ result.label }}</h2>
+                    <p class="confidence">{{ "%.2f"|format(result.confidence * 100) }}% confidence</p>
+                    <p class="confidence">Risk band: {{ result.risk_band }}</p>
+                    <p class="analyzed-url">{{ result.url }}</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-card-header">
+                        <h3>Extracted Features</h3>
+                        <p>Signals the model used for this prediction.</p>
+                    </div>
+                    <div class="feature-grid">
+                        {% for key, value in result.features.items() %}
+                        <div class="feature-item">
+                            <span class="feature-name">{{ key.replace('_', ' ') }}</span>
+                            <strong>{{ value }}</strong>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% elif batch_results %}
+                <div class="feature-card">
+                    <div class="feature-card-header">
+                        <h3>Batch Scan Results</h3>
+                        <p>
+                            {{ batch_results|length }} URLs scanned,
+                            {{ batch_results|selectattr('predicted_class', 'equalto', 1)|list|length }} flagged as phishing.
+                        </p>
+                    </div>
+                    <div class="batch-table-wrap">
+                        <table class="batch-table">
+                            <thead>
+                                <tr>
+                                    <th>URL</th>
+                                    <th>Verdict</th>
+                                    <th>Confidence</th>
+                                    <th>Risk</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in batch_results %}
+                                <tr>
+                                    <td class="table-url">{{ item.url }}</td>
+                                    <td>
+                                        <span class="inline-badge {{ 'danger' if item.predicted_class == 1 else 'ok' }}">
+                                            {{ item.label }}
+                                        </span>
+                                    </td>
+                                    <td>{{ "%.2f"|format(item.confidence * 100) }}%</td>
+                                    <td>{{ item.risk_band }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                {% else %}
+                <div class="placeholder-card">
+                    <p class="placeholder-kicker">Ready when you are</p>
+                    <h2>Results will appear here.</h2>
+                    <p>
+                        Run a single deep check or paste a batch list to turn this into a more practical analyst-style tool.
+                    </p>
+                </div>
+                {% endif %}
+
+                {% if model_metrics %}
+                <div class="feature-card">
+                    <div class="feature-card-header">
+                        <h3>Model Snapshot</h3>
+                        <p>Saved from the latest training run.</p>
+                    </div>
+                    <div class="metric-grid">
+                        <div class="feature-item"><span class="feature-name">Accuracy</span><strong>{{ model_metrics.accuracy }}</strong></div>
+                        <div class="feature-item"><span class="feature-name">Precision</span><strong>{{ model_metrics.precision }}</strong></div>
+                        <div class="feature-item"><span class="feature-name">Recall</span><strong>{{ model_metrics.recall }}</strong></div>
+                        <div class="feature-item"><span class="feature-name">F1 score</span><strong>{{ model_metrics.f1_score }}</strong></div>
+                        <div class="feature-item"><span class="feature-name">ROC AUC</span><strong>{{ model_metrics.roc_auc }}</strong></div>
+                        <div class="feature-item"><span class="feature-name">Dataset size</span><strong>{{ model_metrics.dataset_size }}</strong></div>
+                    </div>
+                    <div class="feature-card-header metrics-subhead">
+                        <h3>Top Features</h3>
+                    </div>
+                    <div class="feature-grid">
+                        {% for item in model_metrics.feature_importance %}
+                        <div class="feature-item">
+                            <span class="feature-name">{{ item.feature.replace('_', ' ') }}</span>
+                            <strong>{{ item.importance }}</strong>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+            </section>
+        </main>
+    </div>
+</body>
+</html>
